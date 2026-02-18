@@ -1,38 +1,244 @@
-.App {
-  text-align: center;
+/* Base layout */
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: #282c34;
+  color: white;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.app-logo-link {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
 }
 
-.App-header {
-  background-color: #282c34;
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.app-nav a {
+  color: #61dafb;
+  text-decoration: none;
+}
+
+.logout-btn {
+  background: transparent;
+  border: 1px solid #61dafb;
+  color: #61dafb;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.app-main {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+/* Landing */
+.landing-page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
+  text-align: center;
+  padding: 2rem;
+  background: #282c34;
   color: white;
 }
 
-.App-link {
+.landing-page h1 {
+  margin-bottom: 0.5rem;
+}
+
+.landing-actions {
+  display: flex;
+  gap: 1rem;
+  margin: 2rem 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.landing-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.landing-btn.primary {
+  background: #61dafb;
+  color: #282c34;
+}
+
+.landing-btn.secondary {
+  background: transparent;
+  color: #61dafb;
+  border: 2px solid #61dafb;
+}
+
+.landing-register {
+  margin-top: 1rem;
+}
+
+.landing-register a {
   color: #61dafb;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Auth pages */
+.auth-page {
+  max-width: 400px;
+  margin: 2rem auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  text-align: left;
+  margin-bottom: 1rem;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.auth-form input,
+.auth-form select {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.auth-form button {
+  padding: 0.6rem;
+  background: #282c34;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.address-fields {
+  border: 1px solid #ddd;
+  padding: 1rem;
+  margin: 0;
+  border-radius: 4px;
+}
+
+.address-fields legend {
+  padding: 0 0.5rem;
+}
+
+.forgot-password {
+  margin-top: 0.5rem;
+}
+
+.forgot-password a {
+  color: #61dafb;
+}
+
+/* Dashboard & sections */
+.booking-dashboard h1,
+.admin-crew-page h1 {
+  margin-bottom: 1.5rem;
+}
+
+.booking-dashboard section,
+.admin-crew-page section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+
+.availability-placeholder,
+.booking-summary-placeholder,
+.booking-success-placeholder {
+  color: #666;
+}
+
+.crew-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.crew-table th,
+.crew-table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.revoke-btn {
+  padding: 0.35rem 0.75rem;
+  background: #c00;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.form-message { margin-bottom: 1rem; padding: 0.5rem; border-radius: 4px; }
+.form-message.success { background: #d4edda; color: #155724; }
+.form-message.error { background: #f8d7da; color: #721c24; }
+
+.temp-password-box {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 6px;
+}
+
+.temp-password {
+  font-size: 1.5rem;
+  font-weight: bold;
+  font-family: monospace;
+  letter-spacing: 0.1em;
+  color: #856404;
+  margin: 0.5rem 0;
+}
+
+.temp-password-note {
+  font-size: 0.9rem;
+  color: #856404;
+  margin-top: 0.5rem;
+}
+
+.create-crew-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 400px;
+}
+
+.create-crew-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.create-crew-form input,
+.create-crew-form select {
+  padding: 0.5rem;
+}
+
+.ref-id {
+  font-weight: 600;
 }
