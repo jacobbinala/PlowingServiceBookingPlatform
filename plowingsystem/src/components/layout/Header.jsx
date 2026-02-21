@@ -1,15 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
-/**
- * App header with logo/nav and Log Out control.
- * Log Out is a placeholder until auth is implemented (#22).
- */
 function Header() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    // TODO (#22): Colleague – terminate session (clear token/session, call logout API if any), then redirect
-    // Example: clearStorage(); navigate('/login');
+    logout();
     navigate('/login');
   };
 

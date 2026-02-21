@@ -1,39 +1,43 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
-/*
-  User Story #22: Login / Logout
-  TODOs for colleague:
-  - Implement login with registered email/password (call auth API, store token/session in state or context).
-  - On success, redirect to Booking Dashboard (e.g. navigate('/dashboard')) for property owner.
-  - Wire "Forgot Password" below to forgot-password flow (dedicated route or modal).
-  - Wire "Log Out" in Layout/Header to terminate session and redirect (see components/layout/Header.jsx).
-*/
 function LoginPage() {
-  const handleSubmit = (e) => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: call login API with email/password; on success redirect to /dashboard
+    try {
+      const res = await fetch('http://localhost:5002/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      const data = await res.json();
+      if (!res.ok) return setError(data.message);
+      login(data.token);
+      navigate('/dashboard');
+    } catch (err) {
+      setError('Server error, please try again');
+    }
   };
 
   return (
     <div className="auth-page">
       <h1>Log in</h1>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleSubmit} className="auth-form">
-        <label>
-          Email
-          <input type="email" name="email" placeholder="your@email.com" required />
-        </label>
-        <label>
-          Password
-          <input type="password" name="password" placeholder="••••••••" required />
-        </label>
+        <label>Email<input type="email" name="email" value={form.email} onChange={handleChange} placeholder="your@email.com" required /></label>
+        <label>Password<input type="password" name="password" value={form.password} onChange={handleChange} placeholder="••••••••" required /></label>
         <button type="submit">Log in</button>
-        <p className="forgot-password">
-          <Link to="/forgot-password">Forgot Password?</Link>
-        </p>
+        <p className="forgot-password"><Link to="/forgot-password">Forgot Password?</Link></p>
       </form>
-      <p>
-        Don&apos;t have an account? <Link to="/register">Register</Link>
-      </p>
+      <p>Don&apos;t have an account? <Link to="/register">Register</Link></p>
     </div>
   );
 }

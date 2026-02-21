@@ -1,20 +1,36 @@
 const express = require('express');
 const router = express.Router();
+const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-// TODO: Wire to User model and real logic
-// POST /api/auth/register - email, password, phone, address; validate address; send Welcome email
-router.post('/register', (req, res) => {
-  res.status(201).json({ message: 'Registration stub', userId: 'stub-id' });
+router.post('/register', async (req, res) => {
+  try {
+    const { email, password, phone, street, city, postalCode } = req.body;
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ message: 'Email already in use' });
+    const user = await User.create({
+      email, password, phone,
+      address: { street, city, postalCode }
+    });
+    res.status(201).json({ message: 'Registration successful', userId: user._id });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 });
 
-// POST /api/auth/login - email, password; return token/session; redirect to dashboard
-router.post('/login', (req, res) => {
-  res.json({ message: 'Login stub', token: 'stub-token' });
-});
-
-// POST /api/auth/forgot-password - email; send reset link
-router.post('/forgot-password', (req, res) => {
-  res.json({ message: 'Forgot password stub' });
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: 'Invalid email or password' });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(400).json({ message: 'Invalid email or password' });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+    res.json({ token });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 });
 
 module.exports = router;
