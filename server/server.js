@@ -8,8 +8,14 @@ const app = express();
 // Connect to MongoDB Atlas
 connectDB();
 
-// Middleware
-app.use(cors());
+// Middleware – allow Vercel frontend in production; set FRONTEND_URL on Render
+const corsOptions = {
+  origin: process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map((u) => u.trim())
+    : true,
+  credentials: true
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
