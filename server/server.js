@@ -9,13 +9,28 @@ const app = express();
 connectDB();
 
 // Middleware – allow Vercel frontend in production; set FRONTEND_URL on Render
+const normalizeOrigin = (url) => (url ? url.replace(/\/+$/, '') : url);
+const allowedOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((u) => u.trim())
+  .filter(Boolean)
+  .map(normalizeOrigin);
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map((u) => u.trim())
-    : true,
-  credentials: true
+  origin(origin, callback) {
+    // Allow non-browser requests (no Origin header), and allow all in dev if FRONTEND_URL is unset.
+    if (!origin || allowedOrigins.length === 0) return callback(null, true);
+
+    const normalized = normalizeOrigin(origin);
+    return callback(null, allowedOrigins.includes(normalized));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
+
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
