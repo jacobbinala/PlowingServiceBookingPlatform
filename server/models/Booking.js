@@ -12,7 +12,25 @@ const bookingSchema = new mongoose.Schema(
       enum: ['driveway', 'walkway', 'full']
     },
     bookingRefId: { type: String, required: true, unique: true },
-    status: { type: String, required: true, enum: ['confirmed', 'cancelled'], default: 'confirmed' }
+    // Booking/job lifecycle (used by owner status dashboard and admin job ticket actions)
+    status: {
+      type: String,
+      required: true,
+      enum: ['pending', 'confirmed', 'en_route', 'completed', 'cancelled'],
+      default: 'confirmed'
+    },
+    // Timestamps for crew/admin status changes
+    enRouteAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
+    // Placeholder notification history (no real email/SMS yet)
+    notifications: [
+      {
+        type: { type: String, enum: ['en_route', 'job_complete'], required: true },
+        sentAt: { type: Date, required: true, default: Date.now },
+        etaWindow: { type: String, default: null }, // e.g. "15-30 mins"
+        completionTime: { type: Date, default: null } // completion timestamp
+      }
+    ]
   },
   { timestamps: true }
 );

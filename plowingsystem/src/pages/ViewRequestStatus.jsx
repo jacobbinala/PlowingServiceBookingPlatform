@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 const STATUS_STEPS = ["Pending", "Approved", "En Route", "Completed"];
 
@@ -56,11 +57,34 @@ const mockBookings = [
 ];
 
 function StatusBadge({ status }) {
-  const meta = STATUS_META[status] || STATUS_META["Pending"];
+  // Backend status values are lowercase snake_case; UI needs title-cased labels.
+  let meta = STATUS_META.Pending;
+  let label = status;
+
+  if (status === "pending") {
+    meta = STATUS_META.Pending;
+    label = "Pending";
+  } else if (status === "confirmed") {
+    meta = STATUS_META.Approved; // reuse styles from Approved
+    label = "Confirmed";
+  } else if (status === "en_route") {
+    meta = STATUS_META["En Route"];
+    label = "En Route";
+  } else if (status === "completed") {
+    meta = STATUS_META.Completed;
+    label = "Completed";
+  } else if (status === "cancelled") {
+    meta = STATUS_META.Cancelled;
+    label = "Cancelled";
+  } else if (STATUS_META[status]) {
+    meta = STATUS_META[status];
+    label = status;
+  }
+
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${meta.bg} ${meta.border} ${meta.color}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
-      {status}
+      {label}
     </span>
   );
 }
@@ -97,95 +121,109 @@ function ProgressBar({ timeline, currentStatus }) {
 }
 
 export default function ViewRequestStatus() {
-  const [expanded, setExpanded] = useState("BK-2041");
+  const { token } = useAuth();
+  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!token) {
+        setBookings([]);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings/my`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to load bookings");
+        if (!cancelled) setBookings(data.bookings || []);
+      } catch (e) {
+        if (!cancelled) setError(e.message || "Failed to load bookings");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, API_BASE]);
+
+  const statusMessage = useMemo(() => {
+    if (!token) return "Log in to view your request status.";
+    if (bookings.length === 0) return "No requests found.";
+    return null;
+  }, [token, bookings.length]);
+
+  const notificationHint = (booking) => {
+    const list = Array.isArray(booking.notifications) ? booking.notifications : [];
+    const enRoute = list.find((n) => n.type === "en_route");
+    const complete = list.find((n) => n.type === "job_complete");
+    if (booking.status === "en_route" && enRoute) return `Arriving in ${enRoute.etaWindow || "15-30 mins"}`;
+    if (booking.status === "completed" && complete)
+      return `Job complete at ${complete.completionTime ? new Date(complete.completionTime).toLocaleString() : "—"}`;
+    return null;
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-mono p-6">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
         <div className="mb-8">
           <p className="text-xs tracking-[0.3em] text-cyan-400 uppercase mb-1">Booking Dashboard</p>
           <h1 className="text-3xl font-bold tracking-tight text-white">Request Status</h1>
           <p className="text-slate-400 text-sm mt-1">Track your active and past service requests</p>
         </div>
 
-        {/* Booking Cards */}
-        <div className="space-y-4">
-          {mockBookings.map((booking) => {
-            const isOpen = expanded === booking.id;
-            const meta = STATUS_META[booking.status];
-            return (
-              <div
-                key={booking.id}
-                className={`border rounded-xl overflow-hidden transition-all ${isOpen ? "border-cyan-500/40 bg-slate-900" : "border-slate-800 bg-slate-900/50 hover:border-slate-700"}`}
-              >
-                {/* Card Header */}
-                <button
-                  className="w-full text-left p-5"
-                  onClick={() => setExpanded(isOpen ? null : booking.id)}
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-1">
-                        <span className="text-xs text-slate-500 tracking-widest">{booking.id}</span>
+        {error && <p className="text-red-400 mb-4">{error}</p>}
+
+        {loading ? (
+          <p className="text-slate-400">Loading…</p>
+        ) : statusMessage ? (
+          <p className="text-slate-400">{statusMessage}</p>
+        ) : (
+          <div className="space-y-4">
+            {bookings.map((booking) => {
+              const isCancelled = booking.status === "cancelled";
+              return (
+                <div key={booking._id || booking.bookingRefId} className="border border-slate-800 bg-slate-900/50 rounded-xl p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-xs text-slate-500 tracking-widest">{booking.bookingRefId || booking.id}</span>
                         <StatusBadge status={booking.status} />
                       </div>
-                      <p className="text-white font-semibold truncate">{booking.property}</p>
-                      <p className="text-slate-400 text-sm">{booking.service} · {booking.date}</p>
-                    </div>
-                    <span className="text-slate-500 text-lg">{isOpen ? "▲" : "▼"}</span>
-                  </div>
-                </button>
-
-                {/* Expanded Detail */}
-                {isOpen && (
-                  <div className="px-5 pb-5 border-t border-slate-800 pt-4">
-                    {/* Progress */}
-                    <ProgressBar timeline={booking.timeline} currentStatus={booking.status} />
-                    {booking.status === "Cancelled" && (
-                      <div className="flex items-center gap-2 mt-3 text-red-400 text-sm">
-                        <span>✕</span> <span>This booking was cancelled.</span>
-                      </div>
-                    )}
-
-                    {/* Details Grid */}
-                    <div className="grid grid-cols-2 gap-3 mt-5">
-                      <div className="bg-slate-800/60 rounded-lg p-3">
-                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Time Slot</p>
-                        <p className="text-white text-sm font-medium">{booking.timeSlot}</p>
-                      </div>
-                      <div className="bg-slate-800/60 rounded-lg p-3">
-                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Service</p>
-                        <p className="text-white text-sm font-medium">{booking.service}</p>
-                      </div>
-                    </div>
-
-                    {booking.notes && (
-                      <div className="mt-3 bg-slate-800/60 rounded-lg p-3">
-                        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Notes</p>
-                        <p className="text-slate-300 text-sm italic">{booking.notes}</p>
-                      </div>
-                    )}
-
-                    {/* Timeline Log */}
-                    <div className="mt-4">
-                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Activity Log</p>
-                      <div className="space-y-2">
-                        {booking.timeline.map((entry, i) => (
-                          <div key={i} className="flex items-center gap-3 text-sm">
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_META[entry.status]?.dot || "bg-slate-600"}`} />
-                            <span className="text-slate-300">{entry.status}</span>
-                            <span className="text-slate-600 text-xs ml-auto">{entry.time}</span>
-                          </div>
-                        ))}
-                      </div>
+                      <p className="text-white font-semibold truncate">
+                        {booking.userId?.address
+                          ? `${booking.userId.address.street || ""}${booking.userId.address.city ? ", " + booking.userId.address.city : ""}`
+                          : "—"}
+                      </p>
+                      <p className="text-slate-400 text-sm">
+                        {booking.serviceType} · {booking.date} · {booking.time}
+                      </p>
+                      {!isCancelled && notificationHint(booking) && (
+                        <p className="mt-3 text-slate-200 text-sm">
+                          <span className="font-semibold text-orange-200">
+                            {booking.status === "en_route" ? "En Route:" : "Notification:"}
+                          </span>{" "}
+                          {notificationHint(booking)}
+                        </p>
+                      )}
+                      {isCancelled && <p className="mt-3 text-red-300 text-sm">This booking was cancelled.</p>}
                     </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

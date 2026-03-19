@@ -17,6 +17,7 @@ function Header() {
       </Link>
       <nav className="app-nav">
         <Link to="/dashboard">Dashboard</Link>
+        <Link to="/dashboard/status">Request Status</Link>
         <Link to="/admin/crew">Admin</Link>
         <button type="button" className="logout-btn" onClick={handleLogout}>
           Log Out

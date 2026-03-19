@@ -40,6 +40,36 @@ function daysInMonth(year, month1to12) {
   return new Date(year, month1to12, 0).getDate();
 }
 
+function serviceTypeLabel(serviceType) {
+  switch (serviceType) {
+    case 'driveway':
+      return 'Driveway';
+    case 'walkway':
+      return 'Walkway';
+    case 'full':
+      return 'Full property';
+    default:
+      return serviceType;
+  }
+}
+
+function statusToHuman(status) {
+  switch (status) {
+    case 'pending':
+      return 'Pending';
+    case 'confirmed':
+      return 'Confirmed';
+    case 'en_route':
+      return 'En Route';
+    case 'completed':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
+    default:
+      return status;
+  }
+}
+
 async function ensureSlotsForDate(date) {
   const existing = await Slot.countDocuments({ date });
   if (existing > 0) return;
@@ -200,6 +230,84 @@ router.post('/', requireAuth, async (req, res) => {
       bookingRefId: booking.bookingRefId,
       bookingId: booking._id
     });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// GET /api/bookings/my - owner view (status badge + placeholder notifications)
+router.get('/my', requireAuth, async (req, res) => {
+  try {
+    const bookings = await Booking.find({ userId: req.user.userId })
+      .sort({ createdAt: -1 })
+      .populate('userId', 'email address.street address.city address.postalCode')
+      .lean();
+
+    res.json({ bookings: bookings.map((b) => ({ ...b, statusLabel: statusToHuman(b.status) })) });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// GET /api/bookings/active - active job tickets for admin/crew
+router.get('/active', requireAuth, async (req, res) => {
+  try {
+    const bookings = await Booking.find({
+      status: { $in: ['pending', 'confirmed', 'en_route'] }
+    })
+      .sort({ createdAt: -1 })
+      .populate('userId', 'email address.street address.city address.postalCode')
+      .lean();
+
+    res.json({
+      bookings: bookings.map((b) => ({
+        ...b,
+        statusLabel: statusToHuman(b.status),
+        serviceLabel: serviceTypeLabel(b.serviceType)
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// PATCH /api/bookings/:id/status - admin/crew updates status and triggers placeholder notifications
+router.patch('/:id/status', requireAuth, async (req, res) => {
+  try {
+    const { status } = req.body || {};
+    if (!status || !['pending', 'confirmed', 'en_route', 'completed', 'cancelled'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid "status"' });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    // Update fields based on status transition
+    const now = new Date();
+    booking.status = status;
+    if (status === 'en_route') booking.enRouteAt = now;
+    if (status === 'completed') booking.completedAt = now;
+
+    // Placeholder notification record (no real email/SMS yet)
+    if (status === 'en_route') {
+      booking.notifications.push({
+        type: 'en_route',
+        sentAt: now,
+        etaWindow: '15-30 mins',
+        completionTime: null
+      });
+    }
+    if (status === 'completed') {
+      booking.notifications.push({
+        type: 'job_complete',
+        sentAt: now,
+        etaWindow: null,
+        completionTime: now
+      });
+    }
+
+    await booking.save();
+    res.json({ message: 'Status updated', bookingId: booking._id, status });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
