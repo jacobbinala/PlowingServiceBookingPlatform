@@ -7,6 +7,9 @@ import RegisterPage from './pages/RegisterPage';
 import BookingDashboardPage from './pages/BookingDashboardPage';
 import AdminCrewPage from './pages/AdminCrewPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import PropertyManagerProfile from './pages/PropertyManagerProfile';
+import ViewRequestStatus from './pages/ViewRequestStatus';
+import ConfirmationNotification from './components/booking/ConfirmationNotification';
 import './App.css';
 
 function App() {
@@ -21,6 +24,10 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<BookingDashboardPage />} />
             <Route path="/admin/crew" element={<AdminCrewPage />} />
+            {/* Sprint 2 - new routes */}
+            <Route path="/profile/properties" element={<PropertyManagerProfile />} />
+            <Route path="/dashboard/status" element={<ViewRequestStatus />} />
+            <Route path="/booking/confirmation" element={<ConfirmationNotification />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
