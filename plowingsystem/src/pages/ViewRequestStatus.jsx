@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
-const STATUS_STEPS = ["Pending", "Approved", "En Route", "Completed"];
-
 const STATUS_META = {
   Pending:   { color: "text-yellow-400", bg: "bg-yellow-400/10", border: "border-yellow-500/30", dot: "bg-yellow-400", icon: "🕐" },
   Approved:  { color: "text-blue-400",   bg: "bg-blue-400/10",   border: "border-blue-500/30",   dot: "bg-blue-400",   icon: "✅" },
@@ -10,51 +8,6 @@ const STATUS_META = {
   Completed: { color: "text-green-400",  bg: "bg-green-400/10",  border: "border-green-500/30",  dot: "bg-green-400",  icon: "🏁" },
   Cancelled: { color: "text-red-400",    bg: "bg-red-400/10",    border: "border-red-500/30",    dot: "bg-red-400",    icon: "✕"  },
 };
-
-const mockBookings = [
-  {
-    id: "BK-2041",
-    property: "142 Elmwood Drive, London ON",
-    service: "Plow & Salt",
-    date: "March 19, 2026",
-    timeSlot: "8:00 AM – 10:00 AM",
-    status: "En Route",
-    notes: "Side gate locked — use front.",
-    timeline: [
-      { status: "Pending",   time: "Mar 18, 9:02 AM" },
-      { status: "Approved",  time: "Mar 18, 10:15 AM" },
-      { status: "En Route",  time: "Mar 19, 7:48 AM" },
-    ],
-  },
-  {
-    id: "BK-2038",
-    property: "88 Ridgeway Ave, London ON",
-    service: "Standard Plow",
-    date: "March 15, 2026",
-    timeSlot: "12:00 PM – 2:00 PM",
-    status: "Completed",
-    notes: "",
-    timeline: [
-      { status: "Pending",   time: "Mar 14, 3:00 PM" },
-      { status: "Approved",  time: "Mar 14, 4:22 PM" },
-      { status: "En Route",  time: "Mar 15, 11:51 AM" },
-      { status: "Completed", time: "Mar 15, 1:10 PM" },
-    ],
-  },
-  {
-    id: "BK-2031",
-    property: "142 Elmwood Drive, London ON",
-    service: "Standard Plow",
-    date: "March 10, 2026",
-    timeSlot: "6:00 AM – 8:00 AM",
-    status: "Cancelled",
-    notes: "Snow melted overnight.",
-    timeline: [
-      { status: "Pending",   time: "Mar 9, 8:00 PM" },
-      { status: "Cancelled", time: "Mar 9, 11:30 PM" },
-    ],
-  },
-];
 
 function StatusBadge({ status }) {
   // Backend status values are lowercase snake_case; UI needs title-cased labels.
@@ -86,37 +39,6 @@ function StatusBadge({ status }) {
       <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
       {label}
     </span>
-  );
-}
-
-function ProgressBar({ timeline, currentStatus }) {
-  if (currentStatus === "Cancelled") return null;
-  const currentStep = STATUS_STEPS.indexOf(currentStatus);
-  return (
-    <div className="flex items-center gap-0 mt-4">
-      {STATUS_STEPS.map((step, i) => {
-        const reached = i <= currentStep;
-        const active = i === currentStep;
-        return (
-          <div key={step} className="flex items-center flex-1 last:flex-none">
-            <div className="flex flex-col items-center">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all
-                ${active ? "border-cyan-400 bg-cyan-400 text-slate-950" :
-                  reached ? "border-cyan-600 bg-cyan-600/20 text-cyan-400" :
-                  "border-slate-700 bg-slate-800 text-slate-600"}`}>
-                {reached ? (active ? "●" : "✓") : i + 1}
-              </div>
-              <span className={`text-[10px] mt-1 whitespace-nowrap ${active ? "text-cyan-400 font-semibold" : reached ? "text-slate-400" : "text-slate-600"}`}>
-                {step}
-              </span>
-            </div>
-            {i < STATUS_STEPS.length - 1 && (
-              <div className={`flex-1 h-0.5 mb-4 mx-1 ${i < currentStep ? "bg-cyan-600" : "bg-slate-700"}`} />
-            )}
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
