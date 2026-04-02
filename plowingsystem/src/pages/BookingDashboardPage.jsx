@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
  */
 function BookingDashboardPage() {
   const { token } = useAuth();
-  const apiBase = useMemo(() => process.env.REACT_APP_API_URL || 'http://localhost:5000', []);
+  const apiBase = useMemo(() => process.env.REACT_APP_API_URL || 'http://localhost:5001', []);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [selectedDate, setSelectedDate] = useState(today);

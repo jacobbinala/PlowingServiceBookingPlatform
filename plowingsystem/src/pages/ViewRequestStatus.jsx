@@ -44,7 +44,7 @@ function StatusBadge({ status }) {
 
 export default function ViewRequestStatus() {
   const { token } = useAuth();
-  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5001";
 
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);

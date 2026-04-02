@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 function AdminCrewPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const { token } = useAuth();
-  const API_BASE = useMemo(() => process.env.REACT_APP_API_URL || 'http://localhost:5000', []);
+  const API_BASE = useMemo(() => process.env.REACT_APP_API_URL || 'http://localhost:5001', []);
 
   const [activeJobs, setActiveJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(false);

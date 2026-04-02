@@ -17,7 +17,7 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: ['pending', 'confirmed', 'en_route', 'completed', 'cancelled'],
-      default: 'confirmed'
+      default: 'pending'
     },
     // Timestamps for crew/admin status changes
     enRouteAt: { type: Date, default: null },

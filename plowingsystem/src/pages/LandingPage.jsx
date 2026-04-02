@@ -13,7 +13,7 @@ function LandingPage() {
         <Link to="/login" className="landing-btn primary">
           Book plowing (Property Owner)
         </Link>
-        <Link to="/admin/crew" className="landing-btn secondary">
+        <Link to="/admin/requests" className="landing-btn secondary">
           Company admin (Plowing Company)
         </Link>
       </div>

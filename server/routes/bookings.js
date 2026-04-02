@@ -1,22 +1,41 @@
 const express = require('express');
 const router = express.Router();
 
-const jwt = require('jsonwebtoken');
 const Slot = require('../models/Slot');
 const Booking = require('../models/Booking');
+const Invoice = require('../models/Invoice');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { addClient, sendEvent, broadcastAvailabilityUpdate } = require('../services/slotEvents');
 
-function requireAuth(req, res, next) {
-  const header = req.headers.authorization || '';
-  const [type, token] = header.split(' ');
-  if (type !== 'Bearer' || !token) return res.status(401).json({ message: 'Missing or invalid authorization header' });
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    req.user = { userId: payload.userId };
-    return next();
-  } catch (e) {
-    return res.status(401).json({ message: 'Invalid or expired token' });
+function serviceAmountForInvoice(serviceType) {
+  switch (serviceType) {
+    case 'driveway':
+      return 80;
+    case 'walkway':
+      return 45;
+    case 'full':
+      return 120;
+    default:
+      return 80;
   }
+}
+
+async function ensureInvoiceForCompletedBooking(booking) {
+  const existing = await Invoice.findOne({ bookingId: booking._id });
+  if (existing) return existing;
+
+  const invoiceRef = `INV-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + 14);
+
+  return Invoice.create({
+    invoiceRef,
+    userId: booking.userId,
+    bookingId: booking._id,
+    bookingRefId: booking.bookingRefId,
+    amount: serviceAmountForInvoice(booking.serviceType),
+    dueDate
+  });
 }
 
 function isValidDateString(date) {
@@ -220,15 +239,17 @@ router.post('/', requireAuth, async (req, res) => {
       date: updatedSlot.date,
       time: updatedSlot.time,
       serviceType,
-      bookingRefId
+      bookingRefId,
+      status: 'pending'
     });
 
     broadcastAvailabilityUpdate({ date: updatedSlot.date, slotId: String(updatedSlot._id) });
 
     res.status(201).json({
-      message: 'Booking confirmed',
+      message: 'Booking request submitted — pending admin approval',
       bookingRefId: booking.bookingRefId,
-      bookingId: booking._id
+      bookingId: booking._id,
+      status: booking.status
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -249,11 +270,11 @@ router.get('/my', requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/bookings/active - active job tickets for admin/crew
-router.get('/active', requireAuth, async (req, res) => {
+// GET /api/bookings/active - confirmed / in-progress jobs (admin only)
+router.get('/active', requireAuth, requireAdmin, async (req, res) => {
   try {
     const bookings = await Booking.find({
-      status: { $in: ['pending', 'confirmed', 'en_route'] }
+      status: { $in: ['confirmed', 'en_route'] }
     })
       .sort({ createdAt: -1 })
       .populate('userId', 'email address.street address.city address.postalCode')
@@ -271,8 +292,91 @@ router.get('/active', requireAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/bookings/:id/status - admin/crew updates status and triggers placeholder notifications
-router.patch('/:id/status', requireAuth, async (req, res) => {
+// GET /api/bookings/pending-requests — admin: bookings awaiting approval
+router.get('/pending-requests', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const bookings = await Booking.find({ status: 'pending' })
+      .sort({ createdAt: 1 })
+      .populate('userId', 'email phone address.street address.city address.postalCode')
+      .lean();
+
+    res.json({
+      bookings: bookings.map((b) => ({
+        ...b,
+        statusLabel: statusToHuman(b.status),
+        serviceLabel: serviceTypeLabel(b.serviceType)
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// POST /api/bookings/:id/cancel — owner cancels own pending booking (releases slot)
+router.post('/:id/cancel', requireAuth, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (booking.userId.toString() !== req.user.userId.toString()) {
+      return res.status(403).json({ message: 'You can only cancel your own bookings' });
+    }
+    if (booking.status !== 'pending') {
+      return res.status(400).json({ message: 'Only pending bookings can be cancelled' });
+    }
+
+    await Slot.findByIdAndUpdate(booking.slotId, { $inc: { bookedCount: -1 } });
+    booking.status = 'cancelled';
+    await booking.save();
+
+    broadcastAvailabilityUpdate({ date: booking.date, slotId: String(booking.slotId) });
+
+    res.json({ message: 'Booking cancelled', bookingId: booking._id });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// POST /api/bookings/:id/approve — admin: pending → confirmed
+router.post('/:id/approve', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (booking.status !== 'pending') {
+      return res.status(400).json({ message: 'Only pending bookings can be approved' });
+    }
+
+    booking.status = 'confirmed';
+    await booking.save();
+
+    res.json({ message: 'Booking approved', bookingId: booking._id, status: booking.status });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// POST /api/bookings/:id/reject — admin: pending → cancelled, slot released
+router.post('/:id/reject', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (booking.status !== 'pending') {
+      return res.status(400).json({ message: 'Only pending bookings can be rejected' });
+    }
+
+    await Slot.findByIdAndUpdate(booking.slotId, { $inc: { bookedCount: -1 } });
+    booking.status = 'cancelled';
+    await booking.save();
+
+    broadcastAvailabilityUpdate({ date: booking.date, slotId: String(booking.slotId) });
+
+    res.json({ message: 'Booking rejected', bookingId: booking._id });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// PATCH /api/bookings/:id/status — admin updates job status; completed creates an invoice
+router.patch('/:id/status', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { status } = req.body || {};
     if (!status || !['pending', 'confirmed', 'en_route', 'completed', 'cancelled'].includes(status)) {
@@ -307,6 +411,11 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
     }
 
     await booking.save();
+
+    if (status === 'completed') {
+      await ensureInvoiceForCompletedBooking(booking);
+    }
+
     res.json({ message: 'Status updated', bookingId: booking._id, status });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

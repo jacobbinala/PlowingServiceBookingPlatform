@@ -13,7 +13,7 @@ function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -21,7 +21,7 @@ function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) return setError(data.message);
-      login(data.token);
+      login(data.token, data.user);
       navigate('/dashboard');
     } catch (err) {
       setError('Server error, please try again');
