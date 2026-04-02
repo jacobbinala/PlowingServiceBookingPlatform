@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
     if (!token) return;
     if (user?.email) return;
 
-    const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+    const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
     fetch(`${API_BASE}/api/auth/me`, {
       headers: { Authorization: `Bearer ${token}` }
     })

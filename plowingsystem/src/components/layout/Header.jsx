@@ -18,6 +18,7 @@ function Header() {
       <nav className="app-nav">
         <Link to="/dashboard">Dashboard</Link>
         <Link to="/dashboard/status">Request Status</Link>
+        <Link to="/dashboard/invoices">My invoices</Link>
         {user?.role === 'admin' && (
           <>
             <Link to="/admin/requests">Incoming requests</Link>

@@ -44,11 +44,12 @@ function StatusBadge({ status }) {
 
 export default function ViewRequestStatus() {
   const { token } = useAuth();
-  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5001";
+  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +80,27 @@ export default function ViewRequestStatus() {
     };
   }, [token, API_BASE]);
 
+  const cancelPending = async (bookingId) => {
+    if (!window.confirm("Cancel this pending request? The time slot will be released.")) return;
+    setActionError("");
+    try {
+      const res = await fetch(`${API_BASE}/api/bookings/${bookingId}/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not cancel");
+      const myRes = await fetch(`${API_BASE}/api/bookings/my`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const myData = await myRes.json();
+      if (!myRes.ok) throw new Error(myData.message || "Failed to refresh list");
+      setBookings(myData.bookings || []);
+    } catch (e) {
+      setActionError(e.message || "Could not cancel");
+    }
+  };
+
   const statusMessage = useMemo(() => {
     if (!token) return "Log in to view your request status.";
     if (bookings.length === 0) return "No requests found.";
@@ -105,6 +127,7 @@ export default function ViewRequestStatus() {
         </div>
 
         {error && <p className="text-red-400 mb-4">{error}</p>}
+        {actionError && <p className="text-red-400 mb-4">{actionError}</p>}
 
         {loading ? (
           <p className="text-slate-400">Loading…</p>
@@ -117,7 +140,7 @@ export default function ViewRequestStatus() {
               return (
                 <div key={booking._id || booking.bookingRefId} className="border border-slate-800 bg-slate-900/50 rounded-xl p-5">
                   <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-xs text-slate-500 tracking-widest">{booking.bookingRefId || booking.id}</span>
                         <StatusBadge status={booking.status} />
@@ -139,6 +162,15 @@ export default function ViewRequestStatus() {
                         </p>
                       )}
                       {isCancelled && <p className="mt-3 text-red-300 text-sm">This booking was cancelled.</p>}
+                      {booking.status === "pending" && booking._id && (
+                        <button
+                          type="button"
+                          className="mt-4 text-sm font-semibold px-3 py-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10"
+                          onClick={() => cancelPending(booking._id)}
+                        >
+                          Cancel pending booking
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

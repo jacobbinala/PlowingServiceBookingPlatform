@@ -21,7 +21,12 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { status } = req.query;
     const filter = {};
-    if (status === 'unpaid' || status === 'paid') filter.status = status;
+    if (status === 'paid') {
+      filter.status = 'paid';
+    } else if (status === 'unpaid') {
+      // Include docs missing `status` (legacy) — anything not marked paid
+      filter.$or = [{ status: 'unpaid' }, { status: { $exists: false } }, { status: null }];
+    }
 
     const invoices = await Invoice.find(filter)
       .sort({ createdAt: -1 })

@@ -2,7 +2,7 @@ import AvailabilityView from '../components/booking/AvailabilityView';
 import BookingRequestForm from '../components/booking/BookingRequestForm';
 import BookingSummary from '../components/booking/BookingSummary';
 import BookingSuccess from '../components/booking/BookingSuccess';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 /**
@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
  */
 function BookingDashboardPage() {
   const { token } = useAuth();
-  const apiBase = useMemo(() => process.env.REACT_APP_API_URL || 'http://localhost:5001', []);
+  const apiBase = useMemo(() => process.env.REACT_APP_API_URL || 'http://localhost:5000', []);
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -38,30 +38,43 @@ function BookingDashboardPage() {
     if (firstAvailable) setSelectedSlotId(firstAvailable._id);
   }, [slots, selectedSlotId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadMyBookings() {
-      if (!token) return;
-      setMyBookingsLoading(true);
-      setMyBookingsError('');
-      try {
-        const res = await fetch(`${apiBase}/api/bookings/my`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Failed to load requests');
-        if (!cancelled) setMyBookings(data.bookings || []);
-      } catch (e) {
-        if (!cancelled) setMyBookingsError(e.message || 'Failed to load requests');
-      } finally {
-        if (!cancelled) setMyBookingsLoading(false);
-      }
+  const loadMyBookings = useCallback(async () => {
+    if (!token) return;
+    setMyBookingsLoading(true);
+    setMyBookingsError('');
+    try {
+      const res = await fetch(`${apiBase}/api/bookings/my`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to load requests');
+      setMyBookings(data.bookings || []);
+    } catch (e) {
+      setMyBookingsError(e.message || 'Failed to load requests');
+    } finally {
+      setMyBookingsLoading(false);
     }
-    loadMyBookings();
-    return () => {
-      cancelled = true;
-    };
   }, [apiBase, token]);
+
+  useEffect(() => {
+    loadMyBookings();
+  }, [loadMyBookings]);
+
+  const cancelPendingBooking = async (bookingId) => {
+    if (!window.confirm('Cancel this pending request? The time slot will be released for others.')) return;
+    setMyBookingsError('');
+    try {
+      const res = await fetch(`${apiBase}/api/bookings/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Could not cancel');
+      await loadMyBookings();
+    } catch (e) {
+      setMyBookingsError(e.message || 'Could not cancel');
+    }
+  };
 
   const activeBookings = useMemo(() => {
     return (myBookings || []).filter((b) => ['pending', 'confirmed', 'en_route'].includes(b.status));
@@ -81,7 +94,7 @@ function BookingDashboardPage() {
           <p style={{ color: '#666' }}>No active requests.</p>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            {activeBookings.slice(0, 5).map((b) => {
+            {activeBookings.map((b) => {
               const badge = (status) => {
                 switch (status) {
                   case 'pending':
@@ -103,13 +116,24 @@ function BookingDashboardPage() {
                     borderRadius: 10,
                     border: `1px solid ${m.border}`,
                     background: m.bg,
-                    color: m.color
+                    color: m.color,
+                    minWidth: 160
                   }}
                 >
                   <div style={{ fontWeight: 800 }}>{m.label}</div>
+                  <div style={{ fontSize: 11, opacity: 0.9 }}>{b.bookingRefId}</div>
                   <div style={{ fontSize: 12 }}>
                     {b.date} · {b.time}
                   </div>
+                  {b.status === 'pending' && b._id && (
+                    <button
+                      type="button"
+                      style={{ marginTop: 8, fontSize: 12, cursor: 'pointer' }}
+                      onClick={() => cancelPendingBooking(b._id)}
+                    >
+                      Cancel request
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -175,6 +199,7 @@ function BookingDashboardPage() {
 
             setBookingRefId(data.bookingRefId);
             setStep('success');
+            loadMyBookings();
           }}
         />
       )}

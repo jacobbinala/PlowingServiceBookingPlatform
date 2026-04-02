@@ -12,6 +12,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import PropertyManagerProfile from './pages/PropertyManagerProfile';
 import ViewRequestStatus from './pages/ViewRequestStatus';
 import ConfirmationNotification from './components/booking/ConfirmationNotification';
+import MyInvoicesPage from './pages/MyInvoicesPage';
 import './App.css';
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
             {/* Sprint 2 - new routes */}
             <Route path="/profile/properties" element={<PropertyManagerProfile />} />
             <Route path="/dashboard/status" element={<ViewRequestStatus />} />
+            <Route path="/dashboard/invoices" element={<MyInvoicesPage />} />
             <Route path="/booking/confirmation" element={<ConfirmationNotification />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
